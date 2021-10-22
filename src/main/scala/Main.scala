@@ -18,13 +18,21 @@ object Main extends App {
 
     import spark.implicits._
 
-    val df1 = Seq(("Java", "20000"), ("Python", "100000"), ("Scala", "3000"), ("R", "14000") ).toDF("Course", "Level")
+    val df1 = Seq((1, "Java", 20000), (2, "Python", 100000), (3, "Scala", 3000), (4, "R", 14000) ).toDF("id", "course", "level")
 
-    writeFile(df1, "final")
-    writeTable(df1, "singlefilesbt")
+    //writeFile(df1, "final")
+    //writeTable(df1, "singlefilesbt")
 
-    //readTable(spark, "singlefilesbt")
+    val query =
+      s"""|
+          |(select id, course, level from app.singlefilesbt where id > 1) b1
+          |""".stripMargin
 
+    readTable(spark, "singlefilesbt")
+      .show
+
+    readTable(spark, query, "")
+      .show(false)
 
   }
 
@@ -60,21 +68,24 @@ object Main extends App {
 
   }
 
-  def writeTable(df: DataFrame, tablename: String): Unit = {
+  def writeTable(df: DataFrame, tableName: String, schema: String = "app"): Unit = {
 
     df.write
       .format("jdbc")
-      .options( Map("url" -> "jdbc:postgresql://localhost:5432/sakksoftware", "user" -> "sakksoftware", "password" -> "", "dbtable" -> s"app.$tablename") )
+      .mode(SaveMode.Overwrite)
+      .options( Map("url" -> "jdbc:postgresql://localhost:5432/sakksoftware", "user" -> "sakksoftware", "password" -> "", "dbtable" -> s"$schema.$tableName") )
       .save()
 
   }
 
-  def readTable (spark: SparkSession, tablename: String): DataFrame = {
+  def readTable (spark: SparkSession, tableName: String, schema: String = "app" ): DataFrame = {
+
+    val query = if (schema.nonEmpty) s"$schema.$tableName" else tableName
 
     spark.read
       .format("jdbc")
       .option("url", "jdbc:postgresql://localhost:5432/sakksoftware")
-      .option("dbtable", s"app.$tablename")
+      .option("dbtable", query)
       .option("user", "sakksoftware")
       .option("password", "")
       .load()
